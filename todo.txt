@@ -1,0 +1,62 @@
+
+Krok 6: Zasiej dane
+
+Zasiej regiony:
+Utwórz backend/seed_regions.py, jeśli jeszcze nie istnieje:
+
+from app import db
+from app.models.region import Region
+
+def seed_regions():
+    region = Region(name="Polska", code="PL")
+    db.session.add(region)
+    db.session.commit()
+
+if __name__ == "__main__":
+    seed_regions()
+
+docker exec -it is_projekt-app-1 python seed_regions.py
+Zasiej dane bezrobocia:
+Sprawdź seed_unemployment.py:
+
+cat seed_unemployment.py
+Uruchom:
+
+docker exec -it is_projekt-app-1 python seed_unemployment.py
+Jeśli plik nie działa, upewnij się, że wywołuje seed_from_file z unemployment_csv_import.py.
+Zaimportuj zgony z Eurostatu:
+Utwórz backend/test_import.py:
+
+from app.services.eurostat_client import import_deaths_from_eurostat
+
+if __name__ == "__main__":
+    import_deaths_from_eurostat()
+
+docker exec -it backend-app-1 python test_import.py
+Krok 7: Przetestuj GUI
+
+Otwórz GUI:
+Wejdź w przeglądarce na http://localhost:8000/.
+Zaloguj się:
+
+Zarejestruj użytkownika:
+curl -X POST http://localhost:8000/api/auth/register -H "Content-Type: application/json" -d '{"username":"admin","password":"password"}'
+Zaloguj się w GUI, wpisując username: admin, password: password.
+
+Przetestuj funkcje:
+Eksport: Wybierz typ danych (unemployment lub deaths), podaj zakres dat (np. 2020-01 do 2022-12), wybierz format (JSON, YAML, XML) i kliknij "Eksportuj". JSON wyświetli się w tabeli, YAML/XML pobierze się jako plik.
+Import CSV: Wybierz plik data/unemployment.csv i kliknij "Importuj". Sprawdź komunikat.
+Import zgonów: Kliknij "Importuj z Eurostatu" i zweryfikuj komunikat o sukcesie.
+
+Krok 8: (Opcjonalnie) Serwer SOAP
+
+Jeśli chcesz uruchomić serwer SOAP lokalnie:
+
+cd /Users/hubert/Desktop/sem6/pai/projekt/IS_Projekt/backend/soap_service
+source ../venv/bin/activate
+pip install -r requirements.txt
+uvicorn soap_server:app --host 0.0.0.0 --port 8001
+
+Przetestuj:
+
+curl http://localhost:8001/ws/unemployment

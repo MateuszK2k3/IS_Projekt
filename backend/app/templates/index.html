@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <title>Statystyki Społeczne</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f9; }
+        h1, h2 { color: #333; }
+        .section { margin-bottom: 20px; padding: 15px; background-color: #fff; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        form { display: flex; flex-direction: column; max-width: 400px; }
+        label { margin: 5px 0; font-weight: bold; }
+        select, input, button { margin: 5px 0; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        button { background-color: #007bff; color: #fff; cursor: pointer; }
+        button:hover { background-color: #0056b3; }
+        #result { margin-top: 20px; padding: 10px; border: 1px solid #ddd; border-radius: 4px; background-color: #f9f9f9; }
+        table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #e9ecef; }
+        .error { color: #dc3545; }
+        .success { color: #28a745; }
+    </style>
+</head>
+<body>
+    <h1>Statystyki Bezrobocia i Zgonów</h1>
+
+    <!-- Sekcja logowania -->
+    <div class="section">
+        <h2>Logowanie</h2>
+        <form id="loginForm">
+            <label for="username">Nazwa użytkownika:</label>
+            <input type="text" id="username" required>
+            <label for="password">Hasło:</label>
+            <input type="password" id="password" required>
+            <button type="submit">Zaloguj</button>
+        </form>
+        <div id="loginResult"></div>
+    </div>
+
+    <!-- Sekcja eksportu danych -->
+    <div class="section">
+        <h2>Eksport danych</h2>
+        <form id="exportForm">
+            <label for="type">Typ danych:</label>
+            <select id="type" name="type">
+                <option value="unemployment">Bezrobocie</option>
+                <option value="deaths">Zgony</option>
+            </select>
+            <label for="from">Od (YYYY-MM):</label>
+            <input type="text" id="from" name="from" placeholder="YYYY-MM" required>
+            <label for="to">Do (YYYY-MM):</label>
+            <input type="text" id="to" name="to" placeholder="YYYY-MM" required>
+            <label for="format">Format:</label>
+            <select id="format" name="format">
+                <option value="application/json">JSON</option>
+                <option value="application/x-yaml">YAML</option>
+                <option value="application/xml">XML</option>
+            </select>
+            <button type="submit">Eksportuj</button>
+        </form>
+        <div id="exportResult"></div>
+    </div>
+
+    <!-- Sekcja importu CSV -->
+    <div class="section">
+        <h2>Import danych bezrobocia (CSV)</h2>
+        <form id="importCsvForm" enctype="multipart/form-data">
+            <label for="csvFile">Plik CSV:</label>
+            <input type="file" id="csvFile" name="file" accept=".csv" required>
+            <button type="submit">Importuj</button>
+        </form>
+        <div id="importCsvResult"></div>
+    </div>
+
+    <!-- Sekcja importu zgonów z Eurostatu -->
+    <div class="section">
+        <h2>Import zgonów z Eurostatu</h2>
+        <button id="importDeathsBtn">Importuj z Eurostatu</button>
+        <div id="importDeathsResult"></div>
+    </div>
+
+    <script>
+        let token = null;
+
+        // Funkcja do wysyłania żądań z tokenem JWT
+        async function fetchWithToken(url, options = {}) {
+            if (!token) {
+                alert('Proszę się zalogować!');
+                return null;
+            }
+            options.headers = {
+                ...options.headers,
+                'Authorization': `Bearer ${token}`
+            };
+            const response = await fetch(url, options);
+            return response;
+        }
+
+        // Logowanie
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const resultDiv = document.getElementById('loginResult');
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    token = data.access_token;
+                    resultDiv.textContent = 'Zalogowano pomyślnie!';
+                    resultDiv.className = 'success';
+                } else {
+                    resultDiv.textContent = data.msg || 'Błąd logowania';
+                    resultDiv.className = 'error';
+                }
+            } catch (err) {
+                resultDiv.textContent = 'Błąd serwera';
+                resultDiv.className = 'error';
+            }
+        });
+
+        // Eksport danych
+        document.getElementById('exportForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const type = document.getElementById('type').value;
+            const from = document.getElementById('from').value;
+            const to = document.getElementById('to').value;
+            const format = document.getElementById('format').value;
+            const resultDiv = document.getElementById('exportResult');
+            try {
+                const response = await fetchWithToken(`/api/v1/export?type=${type}&from=${from}&to=${to}`, {
+                    headers: { 'Accept': format }
+                });
+                if (!response) return;
+                if (response.ok) {
+                    const contentType = response.headers.get('Content-Type');
+                    const data = await (contentType.includes('xml') ? response.text() : response.json());
+                    if (contentType.includes('json')) {
+                        // Wyświetl dane w tabeli
+                        resultDiv.innerHTML = '<table><tr><th>Data</th><th>Wartość</th></tr>' +
+                            data.map(row => `<tr><td>${row.date}</td><td>${row.count || row.rate}</td></tr>`).join('') +
+                            '</table>';
+                    } else {
+                        // Pobierz plik
+                        const blob = new Blob([data], { type: contentType });
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `data.${format.split('/')[1]}`;
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                        resultDiv.textContent = 'Pobieranie rozpoczęte!';
+                        resultDiv.className = 'success';
+                    }
+                } else {
+                    const error = await response.json();
+                    resultDiv.textContent = error.error || 'Błąd eksportu';
+                    resultDiv.className = 'error';
+                }
+            } catch (err) {
+                resultDiv.textContent = 'Błąd serwera';
+                resultDiv.className = 'error';
+            }
+        });
+
+        // Import CSV
+        document.getElementById('importCsvForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const file = document.getElementById('csvFile').files[0];
+            const formData = new FormData();
+            formData.append('file', file);
+            const resultDiv = document.getElementById('importCsvResult');
+            try {
+                const response = await fetchWithToken('/api/v1/unemployment/import/csv', {
+                    method: 'POST',
+                    body: formData
+                });
+                if (!response) return;
+                const data = await response.json();
+                if (response.ok) {
+                    resultDiv.textContent = data.msg;
+                    resultDiv.className = 'success';
+                } else {
+                    resultDiv.textContent = data.error || 'Błąd importu';
+                    resultDiv.className = 'error';
+                }
+            } catch (err) {
+                resultDiv.textContent = 'Błąd serwera';
+                resultDiv.className = 'error';
+            }
+        });
+
+        // Import zgonów z Eurostatu
+        document.getElementById('importDeathsBtn').addEventListener('click', async () => {
+            const resultDiv = document.getElementById('importDeathsResult');
+            try {
+                const response = await fetchWithToken('/api/v1/deaths/import', {
+                    method: 'POST'
+                });
+                if (!response) return;
+                const data = await response.json();
+                if (response.ok) {
+                    resultDiv.textContent = data.msg;
+                    resultDiv.className = 'success';
+                } else {
+                    resultDiv.textContent = data.error || 'Błąd importu';
+                    resultDiv.className = 'error';
+                }
+            } catch (err) {
+                resultDiv.textContent = 'Błąd serwera';
+                resultDiv.className = 'error';
+            }
+        });
+    </script>
+</body>
+</html>
