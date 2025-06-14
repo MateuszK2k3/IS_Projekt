@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<definitions xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+             xmlns:tns="http://example.com/unemployment"
+             xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+             xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+             targetNamespace="http://example.com/unemployment"
+             name="UnemploymentService">
+
+  <message name="get_unemployment_rateRequest">
+    <part name="year" type="xsd:int"/>
+    <part name="month" type="xsd:int"/>
+  </message>
+
+  <message name="get_unemployment_rateResponse">
+    <part name="rate" type="xsd:string"/>
+  </message>
+
+  <portType name="UnemploymentPortType">
+    <operation name="get_unemployment_rate">
+      <input message="tns:get_unemployment_rateRequest"/>
+      <output message="tns:get_unemployment_rateResponse"/>
+    </operation>
+  </portType>
+
+  <binding name="UnemploymentBinding" type="tns:UnemploymentPortType">
+    <soap:binding style="rpc" transport="http://schemas.xmlsoap.org/soap/http"/>
+    <operation name="get_unemployment_rate">
+      <soap:operation soapAction="get_unemployment_rate"/>
+      <input><soap:body use="literal"/></input>
+      <output><soap:body use="literal"/></output>
+    </operation>
+  </binding>
+
+  <service name="UnemploymentService">
+    <port name="UnemploymentPort" binding="tns:UnemploymentBinding">
+      <soap:address location="http://localhost:8002/ws/unemployment"/>
+    </port>
+  </service>
+</definitions>

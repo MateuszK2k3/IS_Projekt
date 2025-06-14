@@ -16,7 +16,7 @@ def create_app():
     migrate.init_app(app, db)
     jwt.init_app(app)
 
-    # Rejestruj blueprinty
+    # Rejestruj wszystkie blueprinty
     from app.routes import register_routes
     register_routes(app)
 
