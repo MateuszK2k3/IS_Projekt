@@ -1,22 +1,12 @@
-from flask import Blueprint, request, jsonify
+import os
+from flask import Blueprint, jsonify
 from flask_jwt_extended import jwt_required
-from app.services.unemployment_csv_import import import_unemployment_from_csv
+from app.utils.seed_regions import seed_unemployment_from_xml
 
-unemployment_bp = Blueprint('unemployment', __name__)
+unemployment_bp = Blueprint("unemployment", __name__, url_prefix="/api/v1/unemployment")
 
-@unemployment_bp.route("/import/csv", methods=["POST"])
+@unemployment_bp.route("/import", methods=["POST"])
 @jwt_required()
-def import_unemployment_csv():
-    """
-    POST /api/v1/unemployment/import/csv
-    form-data: file=<plik CSV z polskimi nazwami miesięcy>
-    """
-    if 'file' not in request.files:
-        return jsonify({"error": "Brak pliku CSV"}), 400
-
-    file = request.files['file']
-    try:
-        imported = import_unemployment_from_csv(file.stream, source_id=1)
-        return jsonify({"msg": f"Zaimportowano {imported} rekordów"}), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+def import_unemployment():
+    count = seed_unemployment_from_xml("data.xml")
+    return jsonify({"msg": f"Zaimportowano {count} rekordów bezrobocia"}), 200

@@ -1,24 +1,24 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-    <meta charset="UTF-8">
-    <title>Statystyki Społeczne</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f9; }
-        h1, h2 { color: #333; }
-        .section { margin-bottom: 20px; padding: 15px; background-color: #fff; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        form { display: flex; flex-direction: column; max-width: 400px; }
-        label { margin: 5px 0; font-weight: bold; }
-        select, input, button { margin: 5px 0; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
-        button { background-color: #007bff; color: #fff; cursor: pointer; }
-        button:hover { background-color: #0056b3; }
-        #result { margin-top: 20px; padding: 10px; border: 1px solid #ddd; border-radius: 4px; background-color: #f9f9f9; }
-        table { border-collapse: collapse; width: 100%; margin-top: 10px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #e9ecef; }
-        .error { color: #dc3545; }
-        .success { color: #28a745; }
-    </style>
+  <meta charset="UTF-8">
+  <title>Statystyki Społeczne</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f9; }
+    h1, h2 { color: #333; }
+    .section { margin-bottom: 20px; padding: 15px; background-color: #fff; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    form { display: flex; flex-direction: column; max-width: 400px; }
+    label { margin: 5px 0; font-weight: bold; }
+    select, input, button { margin: 5px 0; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+    button { background-color: #007bff; color: #fff; cursor: pointer; }
+    button:hover { background-color: #0056b3; }
+    table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background-color: #e9ecef; }
+    .error { color: #dc3545; }
+    .success { color: #28a745; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <h1>Statystyki Bezrobocia i Zgonów</h1>
@@ -60,16 +60,34 @@
         <div id="exportResult"></div>
     </div>
 
-    <!-- Sekcja importu CSV -->
-    <div class="section">
-        <h2>Import danych bezrobocia (CSV)</h2>
-        <form id="importCsvForm" enctype="multipart/form-data">
-            <label for="csvFile">Plik CSV:</label>
-            <input type="file" id="csvFile" name="file" accept=".csv" required>
-            <button type="submit">Importuj</button>
-        </form>
-        <div id="importCsvResult"></div>
+   <div class="section">
+    <h2>SOAP: stopa bezrobocia</h2>
+    <div style="display:flex; gap:1rem; flex-wrap:wrap; align-items:flex-end;">
+      <div>
+        <label for="soapYear">Rok:</label>
+        <select id="soapYear">
+          <option>2018</option><option>2019</option><option>2020</option>
+          <option>2021</option><option>2022</option>
+        </select>
+      </div>
+      <div>
+        <label for="soapMonth">Miesiąc:</label>
+        <select id="soapMonth">
+          <option value="1">Styczeń</option><option value="2">Luty</option>
+          <option value="3">Marzec</option><option value="4">Kwiecień</option>
+          <option value="5">Maj</option><option value="6">Czerwiec</option>
+          <option value="7">Lipiec</option><option value="8">Sierpień</option>
+          <option value="9">Wrzesień</option><option value="10">Październik</option>
+          <option value="11">Listopad</option><option value="12">Grudzień</option>
+        </select>
+      </div>
+      <div><button id="soapFetchBtn">Pojedyncza wartość</button></div>
+      <div><button id="soapFetchAllBtn">Cała seria (2018–2022)</button></div>
     </div>
+    <div id="soapResultSingle" style="margin-top:1rem;"></div>
+    <div id="soapResultAll" style="margin-top:1rem;"></div>
+    <canvas id="soapChart" width="600" height="300" style="max-width:100%;"></canvas>
+  </div>
 
     <!-- Sekcja importu zgonów z Eurostatu -->
     <div class="section">
@@ -78,8 +96,15 @@
         <div id="importDeathsResult"></div>
     </div>
 
+    <div class="section">
+        <h2>Import danych bezrobocia (XML)</h2>
+        <button id="importUnemploymentBtn">Importuj z XML</button>
+        <div id="importUnemploymentResult"></div>
+    </div>
+
     <script>
         let token = null;
+        let soapChart = null;
 
         // Funkcja do wysyłania żądań z tokenem JWT
         async function fetchWithToken(url, options = {}) {
@@ -166,33 +191,6 @@
             }
         });
 
-        // Import CSV
-        document.getElementById('importCsvForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const file = document.getElementById('csvFile').files[0];
-            const formData = new FormData();
-            formData.append('file', file);
-            const resultDiv = document.getElementById('importCsvResult');
-            try {
-                const response = await fetchWithToken('/api/v1/unemployment/import/csv', {
-                    method: 'POST',
-                    body: formData
-                });
-                if (!response) return;
-                const data = await response.json();
-                if (response.ok) {
-                    resultDiv.textContent = data.msg;
-                    resultDiv.className = 'success';
-                } else {
-                    resultDiv.textContent = data.error || 'Błąd importu';
-                    resultDiv.className = 'error';
-                }
-            } catch (err) {
-                resultDiv.textContent = 'Błąd serwera';
-                resultDiv.className = 'error';
-            }
-        });
-
         // Import zgonów z Eurostatu
         document.getElementById('importDeathsBtn').addEventListener('click', async () => {
             const resultDiv = document.getElementById('importDeathsResult');
@@ -213,6 +211,120 @@
                 resultDiv.textContent = 'Błąd serwera';
                 resultDiv.className = 'error';
             }
+        });
+
+        document.getElementById('importUnemploymentBtn').addEventListener('click', async () => {
+            const resultDiv = document.getElementById('importUnemploymentResult');
+            resultDiv.textContent = '';
+            try {
+                const response = await fetchWithToken('/api/v1/unemployment/import', {
+                    method: 'POST'
+                });
+                if (!response) return;
+                const data = await response.json();
+                if (response.ok) {
+                    resultDiv.textContent = data.msg;
+                    resultDiv.className = 'success';
+                } else {
+                    resultDiv.textContent = data.error || 'Błąd importu';
+                    resultDiv.className = 'error';
+                }
+            } catch (err) {
+                resultDiv.textContent = 'Błąd serwera';
+                resultDiv.className = 'error';
+            }
+        });
+
+        // SOAP helper
+        async function soapRequest(year, month) {
+          const body = `<?xml version="1.0"?>
+    <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                      xmlns:ns="http://example.com/unemployment">
+      <soapenv:Body>
+        <ns:get_unemployment_rate>
+          <year>${year}</year>
+          <month>${month}</month>
+        </ns:get_unemployment_rate>
+      </soapenv:Body>
+    </soapenv:Envelope>`;
+          console.log("Wysyłam SOAP:", year, month);
+          const resp = await fetch('http://localhost:8002/ws/unemployment', {
+            method: 'POST',
+            headers: {'Content-Type':'text/xml'},
+            body
+          });
+          const text = await resp.text();
+          const m = text.match(/<ns:rate>(.*?)<\/ns:rate>/);
+          return m ? parseFloat(m[1].trim()) : null;
+        }
+
+        // pojedyncza wartość
+        document.getElementById('soapFetchBtn').addEventListener('click', async () => {
+          const year = document.getElementById('soapYear').value;
+          const month = document.getElementById('soapMonth').value;
+          const out = document.getElementById('soapResultSingle');
+          out.textContent = 'Ładowanie…';
+          try {
+            const rate = await soapRequest(year, month);
+            out.innerHTML = rate != null
+              ? `Stopa w ${String(month).padStart(2,'0')}.${year}: <b>${rate}%</b>`
+              : '<span class="error">Brak danych</span>';
+          } catch {
+            out.innerHTML = '<span class="error">Błąd SOAP</span>';
+          }
+        });
+
+        // cała seria + wykres
+        document.getElementById('soapFetchAllBtn').addEventListener('click', async () => {
+          const outAll = document.getElementById('soapResultAll');
+          outAll.innerHTML = 'Ładowanie serii…<br>';
+          const calls = [];
+          for (let y = 2018; y <= 2022; y++) {
+            for (let m = 1; m <= 12; m++) {
+              calls.push({year: y, month: m});
+            }
+          }
+          const results = await Promise.all(calls.map(c =>
+            soapRequest(c.year, c.month)
+              .then(rate => ({...c, rate}))
+              .catch(() => ({...c, rate: null}))
+          ));
+
+          const data = results.filter(r => r.rate != null);
+
+          // przygotuj dane do Chart.js
+          const labels = data.map(r => `${r.year}-${String(r.month).padStart(2,'0')}`);
+          const values = data.map(r => r.rate);
+
+          const ctx = document.getElementById('soapChart').getContext('2d');
+          if (soapChart) {
+            console.log("Aktualizuję wykres");
+            soapChart.config.data.labels = labels;
+            soapChart.config.data.datasets[0].data = values;
+            soapChart.update();
+          } else {
+            console.log("Tworzę wykres po raz pierwszy");
+            soapChart = new Chart(ctx, {
+              type: 'line',
+              data: {
+                labels,
+                datasets: [{
+                  label: 'Stopa bezrobocia (%)',
+                  data: values,
+                  fill: false,
+                  tension: 0.1,
+                  borderWidth: 2
+                }]
+              },
+              options: {
+                responsive: true,
+                scales: {
+                  x: { title: { display: true, text: 'Data' } },
+                  y: { title: { display: true, text: 'Stopa (%)' } }
+                }
+              }
+            });
+          }
         });
     </script>
 </body>
