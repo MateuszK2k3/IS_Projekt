@@ -19,13 +19,12 @@ services:
       - db
     ports:
       - "8000:8000"
-    # entrypoint i CMD już w obrazie
 
   soap:
     build:
       context: ./soap_service
     env_file:
-      - ./backend/.env   # korzysta z DB_CONFIG z tego samego .env
+      - ./backend/.env
     depends_on:
       - db
     ports:
