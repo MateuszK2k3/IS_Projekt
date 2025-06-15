@@ -1,17 +1,23 @@
-#!/usr/bin/env bash
-set -e
+#!/bin/bash
 
-echo "==> Czekam na bazę danych..."
-
-# Czeka aż baza zacznie przyjmować połączenia (host i port z ENV)
-until nc -z "$POSTGRES_HOST" "$POSTGRES_PORT"; do
-  echo "czekam na $POSTGRES_HOST:$POSTGRES_PORT..."
+echo "Waiting for database..."
+while ! nc -z db 5432; do
   sleep 1
 done
 
-echo "==> Baza działa, wykonuję migracje..."
-export FLASK_APP=wsgi.py
-flask db upgrade
+echo "Database is up!"
 
-echo "==> Startuję aplikację"
-exec gunicorn -b 0.0.0.0:8000 wsgi:app
+export FLASK_APP=wsgi.py
+export PYTHONPATH=/app
+
+# Inicjalizacja bazy danych
+python -c "
+from app import db
+from wsgi import app
+
+with app.app_context():
+    db.create_all()
+"
+
+# Uruchom aplikację
+exec flask run -h 0.0.0.0
