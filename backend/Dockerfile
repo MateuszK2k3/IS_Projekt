@@ -1,6 +1,16 @@
-FROM python:3.9
+# backend/Dockerfile
+FROM python:3.11-slim
+
+# żeby mieć pg_isready
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    postgresql-client gcc libpq-dev \
+  && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 COPY requirements.txt .
-RUN pip install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
 COPY . .
-CMD ["gunicorn", "-b", "0.0.0.0:8000", "wsgi:app"]
+
+# entrypoint.sh ma już 'chmod +x' założony
+ENTRYPOINT ["./entrypoint.sh"]

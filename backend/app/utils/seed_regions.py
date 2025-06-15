@@ -12,12 +12,13 @@ MONTHS = {
     "wrzesień": 9, "październik": 10, "listopad": 11, "grudzień": 12,
 }
 
-# ustalamy absolutny katalog /data względem tego pliku
-BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-DATA_DIR = os.path.join(BASE_DIR, 'backend', 'data')
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+DATA_DIR = os.path.join(BASE_DIR, 'data')
 
 def seed_regions_from_xml(filename: str = "data.xml") -> int:
     xml_path = os.path.join(DATA_DIR, filename)
+    if not os.path.isfile(xml_path):
+        raise FileNotFoundError(f"Brak pliku XML do importu: {xml_path}")
     tree = ET.parse(xml_path)
     root = tree.getroot()
 
@@ -36,9 +37,7 @@ def seed_regions_from_xml(filename: str = "data.xml") -> int:
     return added
 
 def seed_unemployment_from_xml(filename: str = "data.xml") -> int:
-    # najpierw regiony
     seed_regions_from_xml(filename)
-
     xml_path = os.path.join(DATA_DIR, filename)
     tree = ET.parse(xml_path)
     root = tree.getroot()
