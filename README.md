@@ -61,15 +61,20 @@ Python 3.11
 
 PostgreSQL (z poziomami izolacji transakcji)
 
-SQLAlchemy (ORM)
+SQLAlchemy (ORM) ------------> 2.0.41
 
-Flask (REST API + GUI)
+Flask (REST API + GUI) -----> 2.0.0
+Flask--------------------> c3.1.1
+Flask-JWT-Extended---------------> v4.7.1
+Flask-Migrate ------------------->4.1.0
+Flask-SQLAlchemy --------------------------> 3.1.1
 
-SOAP (serwer usług z plikiem WSDL)
+SOAP (serwer usług z plikiem WSDL)   ------------> SOAPUI 5.8.0
 
 JWT – autoryzacja i uwierzytelnienie
+PyJWT ---------> 2.10.1
 
-Docker + Docker Compose
+Docker + Docker Compose -------> 24.0.6
 
 ### Funkcje
 Import danych o bezrobociu i zgonach z plików XML/CSV
