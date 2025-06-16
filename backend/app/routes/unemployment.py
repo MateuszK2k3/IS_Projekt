@@ -24,12 +24,13 @@ def unemployment_by_region():
     from sqlalchemy import func
     latest_date = db.session.query(func.max(Unemployment.date)).scalar()
     rows = (
-        db.session.query(Region.name, Unemployment.rate)
+        db.session.query(Region.name, func.avg(Unemployment.rate).label('avg_rate'))
         .join(Unemployment)
         .filter(Unemployment.date == latest_date)
+        .group_by(Region.name)
         .all()
     )
-    return jsonify([{"region": r[0], "rate": r[1]} for r in rows])
+    return jsonify([{"region": r[0], "rate": round(r[1], 2)} for r in rows])
 
 @unemployment_bp.route("/monthly-avg")
 @jwt_required()
