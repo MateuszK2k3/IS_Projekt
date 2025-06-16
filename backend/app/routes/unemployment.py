@@ -46,11 +46,21 @@ def import_unemployment_file():
                     "Wartosc": row.findtext("Wartosc", "")
                 })
 
+
         elif fmt == "json":
             data = json.loads(content)
-            if not isinstance(data, list):
-                raise ValueError("JSON musi być listą obiektów")
-            for item in data:
+            if isinstance(data, list):
+                rows = data
+            elif isinstance(data, dict):
+                if isinstance(data.get("root"), dict) and isinstance(data["root"].get("row"), list):
+                    rows = data["root"]["row"]
+                elif isinstance(data.get("row"), list):
+                    rows = data["row"]
+                else:
+                    raise ValueError("JSON musi być listą lub zawierać klucz root.row albo row")
+            else:
+                raise ValueError("Nieobsługiwany format JSON")
+            for item in rows:
                 raw_rows.append({
                     "Kod": item.get("Kod", ""),
                     "Nazwa": item.get("Nazwa", ""),
@@ -58,6 +68,7 @@ def import_unemployment_file():
                     "Wskaźniki": item.get("Wskaźniki", ""),
                     "Rok": item.get("Rok", ""),
                     "Wartosc": item.get("Wartosc", "")
+
                 })
 
         else:  # yaml

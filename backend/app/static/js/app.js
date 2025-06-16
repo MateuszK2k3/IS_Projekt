@@ -42,7 +42,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-// EKSPORT DANYCH
+
+    // EKSPORT DANYCH
     document.getElementById('exportForm').addEventListener('submit', async e => {
         e.preventDefault();
         const t = document.getElementById('type').value;
@@ -60,12 +61,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if (resp.ok) {
                 const ct = resp.headers.get('Content-Type');
                 if (ct.includes('application/json')) {
-                    const data = await resp.json();
-                    out.innerHTML = `
-          <table>
-            <tr><th>Data</th><th>Wartość</th></tr>
-            ${data.map(r => `<tr><td>${r.date}</td><td>${r.count || r.rate}</td></tr>`).join('')}
-          </table>`;
+                    const blob = await resp.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `data.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    out.textContent = 'Pobrano plik JSON.';
+                    out.className = 'success';
                 } else {
                     const text = await resp.text();
                     const blob = new Blob([text], {type: ct});
@@ -205,4 +209,65 @@ document.addEventListener('DOMContentLoaded', () => {
         out.innerHTML = `<span class="error">${js.error || js.msg}</span>`;
         }
     });
+    const dateSlider = document.getElementById('dateSlider');
+    if (dateSlider) {
+        const fromInput = document.getElementById('from');
+        const toInput = document.getElementById('to');
+        const rangeFromEl = document.getElementById('rangeFrom');
+        const rangeToEl = document.getElementById('rangeTo');
+
+        const months = [];
+        for (let y = 2018; y <= 2022; y++) {
+            for (let m = 0; m < 12; m++) {
+                const date = new Date(y, m, 1);
+                months.push(date);
+            }
+        }
+
+        const timestamps = months.map(d => d.getTime());
+
+        noUiSlider.create(dateSlider, {
+            start: [timestamps[0], timestamps[timestamps.length - 1]],
+            range: {
+                min: timestamps[0],
+                max: timestamps[timestamps.length - 1]
+            },
+            step: 30 * 24 * 60 * 60 * 1000, // ~1 miesiąc
+            connect: true,
+            tooltips: [
+                {
+                    to: ts => {
+                        const d = new Date(parseInt(ts));
+                        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                    },
+                    from: () => null
+                },
+                {
+                    to: ts => {
+                        const d = new Date(parseInt(ts));
+                        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                    },
+                    from: () => null
+                }
+            ],
+            format: {
+                to: v => parseInt(v),
+                from: v => parseInt(v)
+            }
+        });
+
+        dateSlider.noUiSlider.on('update', (values) => {
+            const format = ts => {
+                const d = new Date(parseInt(ts));
+                return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            };
+            const fromDate = format(values[0]);
+            const toDate = format(values[1]);
+
+            rangeFromEl.textContent = fromDate;
+            rangeToEl.textContent = toDate;
+            fromInput.value = fromDate;
+            toInput.value = toDate;
+        });
+    }
 });

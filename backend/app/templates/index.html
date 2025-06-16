@@ -5,6 +5,8 @@
     <title>Statystyki Społeczne</title>
     <link rel="stylesheet" href="../static/css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/nouislider@15.7.0/dist/nouislider.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/nouislider@15.7.0/dist/nouislider.min.js"></script>
     <script src="../static/js/app.js"></script>
 </head>
 <body>
@@ -32,10 +34,13 @@
                 <option value="unemployment">Bezrobocie</option>
                 <option value="deaths">Zgony</option>
             </select>
-            <label for="from">Od (YYYY-MM):</label>
-            <input type="text" id="from" name="from" placeholder="YYYY-MM" required>
-            <label for="to">Do (YYYY-MM):</label>
-            <input type="text" id="to" name="to" placeholder="YYYY-MM" required>
+            <label for="dateSlider">Zakres dat (od - do):</label>
+            <div id="dateSlider" style="margin: 10px 0;"></div>
+            <div class="slider-labels">
+              <span id="rangeFrom">2018-01-01</span> — <span id="rangeTo">2022-12-31</span>
+            </div>
+            <input type="hidden" id="from" name="from" value="2018-01-01">
+            <input type="hidden" id="to" name="to" value="2022-12-31">
             <label for="format">Format:</label>
             <select id="format" name="format">
                 <option value="application/json">JSON</option>

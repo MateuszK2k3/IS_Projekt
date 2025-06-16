@@ -39,6 +39,20 @@ def seed_regions_from_xml(filename="data.xml") -> int:
     db.session.commit()
     return added
 
+def seed_regions_from_rows(rows: list[dict]) -> int:
+    existing = {r.code for r in Region.query.all()}
+    added = 0
+    for r in rows:
+        code = r.get("Kod", "").strip()
+        name = r.get("Nazwa", "").strip()
+        if code and name and code not in existing:
+            db.session.add(Region(code=code, name=name))
+            existing.add(code)
+            added += 1
+    db.session.commit()
+    return added
+
+
 def _parse_rows(rows):
     """
     rows: lista dictów z kluczami jak w XML
@@ -96,24 +110,27 @@ def seed_unemployment_from_xml(filename="data.xml") -> int:
     db.session.commit()
     return added
 
-def seed_unemployment_from_json(filename="data.json") -> int:
-    # analogicznie do XML, ale czytamy JSON
-    seed_regions_from_xml("data.json")  # bo nazwy regionów mamy tam
-    path = os.path.join(DATA_DIR, filename)
-    with open(path, "r", encoding="utf-8") as f:
-        data = json.load(f)
-    # oczekujemy listy obiektów
+def seed_unemployment_from_json_data(data: dict | list) -> int:
+    if isinstance(data, dict) and "root" in data and "row" in data["root"]:
+        data = data["root"]["row"]
+
     if not isinstance(data, list):
         raise ValueError("Oczekiwano listy rekordów w JSON")
+
+    # zapisz regiony z listy
+    seed_regions_from_rows(data)
+
+    # przygotuj rekordy do bazy
     rows = []
     for item in data:
         rows.append({
-            "Kod":       item.get("Kod",""),
-            "Wskaźniki": item.get("Wskaźniki",""),
-            "Miesiące":  item.get("Miesiące",""),
-            "Rok":       item.get("Rok",""),
-            "Wartosc":   item.get("Wartosc","")
+            "Kod":       item.get("Kod", ""),
+            "Wskaźniki": item.get("Wskaźniki", ""),
+            "Miesiące":  item.get("Miesiące", ""),
+            "Rok":       item.get("Rok", ""),
+            "Wartosc":   item.get("Wartosc", "")
         })
+
     records = _parse_rows(rows)
 
     added = 0
