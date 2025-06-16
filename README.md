@@ -60,6 +60,8 @@ IS_Projekt-feature-gui_docker/
 
 Windows 10/11
 
+Macos 15.4 (24E248)
+
 
 
 Python 3.11
