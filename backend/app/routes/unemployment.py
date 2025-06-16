@@ -1,4 +1,3 @@
-# backend/app/routes/unemployment.py
 import io
 import xml.etree.ElementTree as ET
 import json
@@ -74,7 +73,6 @@ def import_unemployment_file():
                     "Wartosc": row.findtext("Wartosc", "")
                 })
 
-
         elif fmt == "json":
             data = json.loads(content)
             if isinstance(data, list):
@@ -96,12 +94,10 @@ def import_unemployment_file():
                     "Wskaźniki": item.get("Wskaźniki", ""),
                     "Rok": item.get("Rok", ""),
                     "Wartosc": item.get("Wartosc", "")
-
                 })
 
         else:  # yaml
             data = yaml.safe_load(content)
-            # dopuszczalne struktury: lista obiektów lub dict z kluczem root.row albo row
             if isinstance(data, list):
                 rows = data
             elif isinstance(data, dict):
@@ -113,7 +109,6 @@ def import_unemployment_file():
                     raise ValueError("YAML musi być listą lub zawierać klucz root.row albo row")
             else:
                 raise ValueError("Nieobsługiwany format YAML")
-
             for item in rows:
                 raw_rows.append({
                     "Kod": item.get("Kod", ""),
@@ -135,23 +130,24 @@ def import_unemployment_file():
         if code and name and code not in existing_codes:
             db.session.add(Region(code=code, name=name))
             existing_codes.add(code)
-    db.session.flush()  # jeszcze nie commitujemy
+    db.session.flush()
 
     # 2) Seed unemployment
     added = 0
+    skipped = 0
     for r in raw_rows:
         if str(r.get("Wskaźniki", "")).strip() != "stopa bezrobocia rejestrowanego":
             continue
 
-        code   = str(r.get("Kod", "")).strip()
-        mon    = str(r.get("Miesiące", "")).strip().lower()
+        code = str(r.get("Kod", "")).strip()
+        mon = str(r.get("Miesiące", "")).strip().lower()
         year_s = str(r.get("Rok", "")).strip()
-        rawv   = str(r.get("Wartosc", "")).strip().replace(",", ".")
+        rawv = str(r.get("Wartosc", "")).strip().replace(",", ".")
 
         if not (code and mon and year_s and rawv):
             continue
         try:
-            m    = MONTHS[mon]
+            m = MONTHS[mon]
             date = datetime(int(year_s), m, 1).date()
             rate = float(rawv)
         except Exception:
@@ -162,6 +158,7 @@ def import_unemployment_file():
             continue
         exists = Unemployment.query.filter_by(region_id=region.id, date=date).first()
         if exists:
+            skipped += 1
             continue
 
         db.session.add(Unemployment(
@@ -173,4 +170,6 @@ def import_unemployment_file():
         added += 1
 
     db.session.commit()
-    return jsonify(msg=f"Zaimportowano {added} rekordów z pliku"), 200
+    if added == 0 and skipped > 0:
+        return jsonify(msg=f"Wszystkie dane już istnieją w bazie ({skipped} rekordów pominięto)"), 409
+    return jsonify(msg=f"Zaimportowano {added} rekordów z pliku, pominięto {skipped} duplikatów"), 200

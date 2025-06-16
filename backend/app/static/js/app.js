@@ -1,8 +1,8 @@
-document.addEventListener('DOMContentLoaded', () => {
-    let token = null;
+document.addEventListener('DOMContentLoaded', async () => {
+    let token = localStorage.getItem('token') || null; // Ładuj token z localStorage
     let soapChart = null;
 
-    // helper: fetch z JWT
+    // Helper: fetch z JWT
     async function fetchWithToken(url, opts = {}) {
         if (!token) {
             alert('Proszę się zalogować!');
@@ -15,32 +15,57 @@ document.addEventListener('DOMContentLoaded', () => {
         return fetch(url, opts);
     }
 
+    // Sprawdź stan zalogowania przy starcie
+    if (token) {
+        try {
+            const resp = await fetchWithToken('/api/v1/unemployment/monthly-avg');
+            if (resp && resp.ok) {
+                // Użytkownik zalogowany
+                document.getElementById('mainNav').classList.remove('hidden');
+                document.getElementById('authSection').classList.add('hidden');
+                document.getElementById('homeSection').classList.remove('hidden');
+                await renderHomeCharts();
+                await renderBarChart();
+            } else {
+                // Token nieważny
+                token = null;
+                localStorage.removeItem('token');
+                document.getElementById('authSection').classList.remove('hidden');
+            }
+        } catch {
+            // Błąd serwera
+            token = null;
+            localStorage.removeItem('token');
+            document.getElementById('authSection').classList.remove('hidden');
+        }
+    }
+
     // REJESTRACJA
     document.getElementById("registerForm")?.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const username = document.getElementById("regUsername").value;
-      const password = document.getElementById("regPassword").value;
-      const result = document.getElementById("registerResult");
-      result.textContent = "";
+        e.preventDefault();
+        const username = document.getElementById("regUsername").value;
+        const password = document.getElementById("regPassword").value;
+        const result = document.getElementById("registerResult");
+        result.textContent = "";
 
-      try {
-        const res = await fetch("/api/auth/register", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username, password })
-        });
-        const data = await res.json();
-        if (res.ok) {
-          result.textContent = data.msg;
-          result.className = "text-green-600 mt-2";
-        } else {
-          result.textContent = data.msg || "Błąd rejestracji";
-          result.className = "text-red-600 mt-2";
+        try {
+            const res = await fetch("/api/auth/register", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                result.textContent = data.msg;
+                result.className = "text-green-600 mt-2";
+            } else {
+                result.textContent = data.msg || "Błąd rejestracji";
+                result.className = "text-red-600 mt-2";
+            }
+        } catch {
+            result.textContent = "Błąd połączenia z serwerem";
+            result.className = "text-red-600 mt-2";
         }
-      } catch {
-        result.textContent = "Błąd połączenia z serwerem";
-        result.className = "text-red-600 mt-2";
-      }
     });
 
     // LOGOWANIE
@@ -77,7 +102,6 @@ document.addEventListener('DOMContentLoaded', () => {
             out.className = 'error';
         }
     });
-
 
     // EKSPORT DANYCH
     document.getElementById('exportForm').addEventListener('submit', async e => {
@@ -129,7 +153,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-// IMPORT ZGONÓW
+    // IMPORT ZGONÓW
     document.getElementById('importDeathsBtn').addEventListener('click', async () => {
         const out = document.getElementById('importDeathsResult');
         try {
@@ -143,7 +167,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-// SOAP helper
+    // SOAP helper
     async function soapRequest(year, month) {
         const body = `<?xml version="1.0"?><soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="http://example.com/unemployment"><soapenv:Body><ns:get_unemployment_rate><year>${year}</year><month>${month}</month></ns:get_unemployment_rate></soapenv:Body></soapenv:Envelope>`;
         const resp = await fetch('http://localhost:8002/ws/unemployment', {
@@ -156,7 +180,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return m ? parseFloat(m[1]) : null;
     }
 
-// SOAP: pojedyncza wartość
+    // SOAP: pojedyncza wartość
     document.getElementById('soapFetchBtn').addEventListener('click', async () => {
         const y = document.getElementById('soapYear').value;
         const m = document.getElementById('soapMonth').value;
@@ -170,9 +194,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-// SOAP: cała seria + wykres
+    // SOAP: cała seria + wykres
     document.getElementById('soapFetchAllBtn').addEventListener('click', async () => {
-        console.log("siema")
         const out = document.getElementById('soapResultAll');
         out.textContent = 'Ładowanie serii…';
         const calls = [];
@@ -205,18 +228,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
         }
+      out.textContent = 'Ukończono ładowanie wykresu';
     });
 
     document.getElementById('importFileForm').addEventListener('submit', async e => {
         e.preventDefault();
-        const out  = document.getElementById('importFileResult');
-        const fmt  = document.getElementById('importFormat').value;
+        const out = document.getElementById('importFileResult');
+        const fmt = document.getElementById('importFormat').value;
         const file = document.getElementById('importFile').files[0];
 
         // walidacja
         if (!fmt || !file) {
-        out.innerHTML = '<span class="error">Wybierz format i plik.</span>';
-        return;
+            out.innerHTML = '<span class="error">Wybierz format i plik.</span>';
+            return;
         }
 
         const fd = new FormData();
@@ -224,27 +248,28 @@ document.addEventListener('DOMContentLoaded', () => {
         fd.append('file', file);
 
         const resp = await fetchWithToken('/api/v1/unemployment/import/file', {
-        method: 'POST',
-        body: fd
+            method: 'POST',
+            body: fd
         });
         if (!resp) return;
 
         // próbujemy wyciągnąć JSON, ale w razie gdyby serwer zwrócił HTML/text
         let js;
         try {
-        js = await resp.json();
+            js = await resp.json();
         } catch (err) {
-        const txt = await resp.text();
-        out.innerHTML = `<span class="error">Nieoczekiwana odpowiedź serwera: ${txt}</span>`;
-        return;
+            const txt = await resp.text();
+            out.innerHTML = `<span class="error">Nieoczekiwana odpowiedź serwera: ${txt}</span>`;
+            return;
         }
 
         if (resp.ok) {
-        out.innerHTML = `<span class="success">${js.msg}</span>`;
+            out.innerHTML = `<span class="success">${js.msg}</span>`;
         } else {
-        out.innerHTML = `<span class="error">${js.error || js.msg}</span>`;
+            out.innerHTML = `<span class="error">${js.error || js.msg}</span>`;
         }
     });
+
     const dateSlider = document.getElementById('dateSlider');
     if (dateSlider) {
         const fromInput = document.getElementById('from');
@@ -307,136 +332,154 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
-const tokenFromStorage = localStorage.getItem('token');
 
 async function fetchData(url, key) {
-  const resp = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${localStorage.getItem('token')}`,
-      Accept: 'application/json'
+    const resp = await fetch(url, {
+        headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+            Accept: 'application/json'
+        }
+    });
+
+    if (!resp.ok) {
+        throw new Error(`Błąd API: ${resp.status}`);
     }
-  });
 
-  if (!resp.ok) {
-    throw new Error(`Błąd API: ${resp.status}`);
-  }
-
-  const data = await resp.json();
-  return data.map(d => ({
-    date: d.date,
-    value: parseFloat(d[key])
-  }));
+    const data = await resp.json();
+    return data.map(d => ({
+        date: d.date,
+        value: parseFloat(d[key])
+    }));
 }
 
 async function renderHomeCharts() {
-  const [unemployment, deathsRaw] = await Promise.all([
-    fetchData('/api/v1/unemployment/monthly-avg', 'rate'),
-    fetchData('/api/v1/export?type=deaths&from=2018-01&to=2022-12', 'count'),
-  ]);
+    let chartInstance;
+    try {
+        chartInstance = Chart.getChart('combinedChart'); // Pobierz istniejący wykres
+        if (chartInstance) {
+            chartInstance.destroy(); // Zniszcz istniejący wykres
+        }
+    } catch (e) {
+        console.log('Brak istniejącego wykresu do zniszczenia:', e);
+    }
 
-  const deaths = groupByMonth(deathsRaw);
+    const [unemployment, deathsRaw] = await Promise.all([
+        fetchData('/api/v1/unemployment/monthly-avg', 'rate'),
+        fetchData('/api/v1/export?type=deaths&from=2018-01&to=2022-12', 'count'),
+    ]);
 
-  const labels = deaths.map(d => d.date); // te same miesiące
+    const deaths = groupByMonth(deathsRaw);
 
-  const deathsData = deaths.map(d => d.value);
-  const unemploymentMap = new Map(unemployment.map(d => [d.date.slice(0, 7), d.value]));
-  const unemploymentData = labels.map(month => unemploymentMap.get(month) || null);
+    const labels = deaths.map(d => d.date); // te same miesiące
 
-  const ctx = document.getElementById('combinedChart').getContext('2d');
-  new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [
-        {
-          label: 'Zgony (miesięcznie)',
-          data: deathsData,
-          backgroundColor: 'rgba(255, 99, 132, 0.3)',
-          yAxisID: 'yDeaths',
+    const deathsData = deaths.map(d => d.value);
+    const unemploymentMap = new Map(unemployment.map(d => [d.date.slice(0, 7), d.value]));
+    const unemploymentData = labels.map(month => unemploymentMap.get(month) || null);
+
+    const ctx = document.getElementById('combinedChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: 'Zgony (miesięcznie)',
+                    data: deathsData,
+                    backgroundColor: 'rgba(255, 99, 132, 0.3)',
+                    yAxisID: 'yDeaths',
+                },
+                {
+                    label: 'Stopa bezrobocia (%)',
+                    data: unemploymentData,
+                    type: 'line',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    fill: false,
+                    yAxisID: 'yUnemployment',
+                    tension: 0.3,
+                    pointRadius: 2,
+                },
+            ],
         },
-        {
-          label: 'Stopa bezrobocia (%)',
-          data: unemploymentData,
-          type: 'line',
-          borderColor: 'rgba(54, 162, 235, 1)',
-          backgroundColor: 'rgba(54, 162, 235, 0.2)',
-          fill: false,
-          yAxisID: 'yUnemployment',
-          tension: 0.3,
-          pointRadius: 2,
+        options: {
+            responsive: true,
+            interaction: { mode: 'index', intersect: false },
+            stacked: false,
+            scales: {
+                yDeaths: {
+                    type: 'linear',
+                    position: 'left',
+                    title: { display: true, text: 'Zgony' },
+                },
+                yUnemployment: {
+                    type: 'linear',
+                    position: 'right',
+                    title: { display: true, text: 'Bezrobocie (%)' },
+                    grid: { drawOnChartArea: false },
+                    min: 3,
+                    max: 8
+                },
+            },
         },
-      ],
-    },
-    options: {
-      responsive: true,
-      interaction: { mode: 'index', intersect: false },
-      stacked: false,
-      scales: {
-        yDeaths: {
-          type: 'linear',
-          position: 'left',
-          title: { display: true, text: 'Zgony' },
-        },
-        yUnemployment: {
-          type: 'linear',
-          position: 'right',
-          title: { display: true, text: 'Bezrobocie (%)' },
-          grid: { drawOnChartArea: false },
-          min: 3,
-          max: 8
-        },
-      },
-    },
-  });
+    });
 }
 
-
 async function renderBarChart() {
-  const resp = await fetch('/api/v1/unemployment/region-latest', {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('token')}`,
-        Accept: 'application/json'
-      },
-    });
-  const data = await resp.json();
-  const ctx = document.getElementById('barChart').getContext('2d');
+    let chartInstance;
+    try {
+        chartInstance = Chart.getChart('barChart');
+        if (chartInstance) {
+            chartInstance.destroy();
+        }
+    } catch (e) {
+        console.log('Brak istniejącego wykresu do zniszczenia:', e);
+    }
 
-  new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: data.map(r => r.region),
-      datasets: [{
-        label: 'Stopa bezrobocia (%)',
-        data: data.map(r => r.rate),
-        backgroundColor: 'rgba(0, 123, 255, 0.6)',
-      }],
-    },
-    options: {
-      responsive: true,
-      indexAxis: 'y',
-      scales: {
-        x: {
-          beginAtZero: true,
-          title: { display: true, text: 'Bezrobocie (%)' },
+    const resp = await fetch('/api/v1/unemployment/region-latest', {
+        headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+            Accept: 'application/json'
         },
-      },
-    },
-  });
+    });
+    const data = await resp.json();
+    const ctx = document.getElementById('barChart').getContext('2d');
+
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: data.map(r => r.region),
+            datasets: [{
+                label: 'Stopa bezrobocia (%)',
+                data: data.map(r => r.rate),
+                backgroundColor: 'rgba(0, 123, 255, 0.6)',
+            }],
+        },
+        options: {
+            responsive: true,
+            indexAxis: 'y',
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    title: { display: true, text: 'Bezrobocie (%)' },
+                },
+            },
+        },
+    });
 }
 
 function groupByMonth(data) {
-  const grouped = {};
+    const grouped = {};
 
-  for (const { date, value } of data) {
-    const month = date.slice(0, 7); // YYYY-MM
-    if (!grouped[month]) grouped[month] = 0;
-    grouped[month] += value;
-  }
+    for (const { date, value } of data) {
+        const month = date.slice(0, 7); // YYYY-MM
+        if (!grouped[month]) grouped[month] = 0;
+        grouped[month] += value;
+    }
 
-  return Object.entries(grouped).map(([month, total]) => ({
-    date: month,
-    value: total
-  }));
+    return Object.entries(grouped).map(([month, total]) => ({
+        date: month,
+        value: total
+    }));
 }
 
 window.renderHomeCharts = renderHomeCharts;
