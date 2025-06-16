@@ -9,6 +9,7 @@ Hubert Kwiatkowski
 Yuliia Kozlova
 
 ### Struktura katalogów
+```
 IS_Projekt-feature-gui_docker/
 │
 ├── backend/
@@ -52,7 +53,7 @@ IS_Projekt-feature-gui_docker/
 ├── docker-compose.yml
 ├── README.md
 └── todo.txt
-
+```
 
 
 ### Technologie
