@@ -58,6 +58,10 @@ IS_Projekt-feature-gui_docker/
 
 ### Technologie
 
+Windows 10/11
+
+
+
 Python 3.11
 
 PostgreSQL (z poziomami izolacji transakcji)
