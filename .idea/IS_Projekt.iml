@@ -8,5 +8,6 @@
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="chart.js" level="application" />
     <orderEntry type="library" name="nouislider" level="application" />
+    <orderEntry type="library" name="tailwindcss" level="application" />
   </component>
 </module>

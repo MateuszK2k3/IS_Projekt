@@ -1,108 +1,244 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-    <meta charset="UTF-8">
-    <title>Statystyki Społeczne</title>
-    <link rel="stylesheet" href="../static/css/style.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/nouislider@15.7.0/dist/nouislider.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/nouislider@15.7.0/dist/nouislider.min.js"></script>
-    <script src="../static/js/app.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Statystyki Społeczne</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/nouislider@15.7.0/dist/nouislider.min.css">
+  <link rel="stylesheet" href="../static/css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/nouislider@15.7.0/dist/nouislider.min.js"></script>
+  <script src="../static/js/app.js" defer></script>
 </head>
-<body>
-    <h1>Statystyki Bezrobocia i Zgonów</h1>
+<body class="bg-gray-50 text-gray-800">
+  <nav class="bg-white shadow-md py-4 px-6 flex justify-between items-center hidden" id="mainNav">
+    <div class="text-xl font-bold text-blue-600">📊 Statystyki</div>
+    <ul class="flex gap-4 text-sm font-medium">
+      <li><a href="#" class="nav-link text-gray-600 hover:text-blue-600" data-section="home">Home</a></li>
+      <li><a href="#" class="nav-link text-gray-600 hover:text-blue-600" data-section="soap">SOAP</a></li>
+      <li><a href="#" class="nav-link text-gray-600 hover:text-blue-600" data-section="importExport">Import / Export</a></li>
+      <li><a href="#" class="text-red-600 hover:underline" id="logoutBtn">Wyloguj</a></li>
+    </ul>
+  </nav>
 
-    <!-- Sekcja logowania -->
-    <div class="section">
-        <h2>Logowanie</h2>
-        <form id="loginForm">
-            <label for="username">Nazwa użytkownika:</label>
-            <input type="text" id="username" required>
-            <label for="password">Hasło:</label>
-            <input type="password" id="password" required>
-            <button type="submit">Zaloguj</button>
-        </form>
-        <div id="loginResult"></div>
-    </div>
-
-    <!-- Sekcja eksportu danych -->
-    <div class="section">
-        <h2>Eksport danych</h2>
-        <form id="exportForm">
-            <label for="type">Typ danych:</label>
-            <select id="type" name="type">
-                <option value="unemployment">Bezrobocie</option>
-                <option value="deaths">Zgony</option>
-            </select>
-            <label for="dateSlider">Zakres dat (od - do):</label>
-            <div id="dateSlider" style="margin: 10px 0;"></div>
-            <div class="slider-labels">
-              <span id="rangeFrom">2018-01-01</span> — <span id="rangeTo">2022-12-31</span>
-            </div>
-            <input type="hidden" id="from" name="from" value="2018-01-01">
-            <input type="hidden" id="to" name="to" value="2022-12-31">
-            <label for="format">Format:</label>
-            <select id="format" name="format">
-                <option value="application/json">JSON</option>
-                <option value="application/x-yaml">YAML</option>
-                <option value="application/xml">XML</option>
-            </select>
-            <button type="submit">Eksportuj</button>
-        </form>
-        <div id="exportResult"></div>
-    </div>
-
-   <div class="section">
-    <h2>SOAP: stopa bezrobocia</h2>
-    <div style="display:flex; gap:1rem; flex-wrap:wrap; align-items:flex-end;">
-      <div>
-        <label for="soapYear">Rok:</label>
-        <select id="soapYear">
-          <option>2018</option><option>2019</option><option>2020</option>
-          <option>2021</option><option>2022</option>
-        </select>
-      </div>
-      <div>
-        <label for="soapMonth">Miesiąc:</label>
-        <select id="soapMonth">
-          <option value="1">Styczeń</option><option value="2">Luty</option>
-          <option value="3">Marzec</option><option value="4">Kwiecień</option>
-          <option value="5">Maj</option><option value="6">Czerwiec</option>
-          <option value="7">Lipiec</option><option value="8">Sierpień</option>
-          <option value="9">Wrzesień</option><option value="10">Październik</option>
-          <option value="11">Listopad</option><option value="12">Grudzień</option>
-        </select>
-      </div>
-      <div><button id="soapFetchBtn">Pojedyncza wartość</button></div>
-      <div><button id="soapFetchAllBtn">Cała seria (2018–2022)</button></div>
-    </div>
-    <div id="soapResultSingle" style="margin-top:1rem;"></div>
-    <div id="soapResultAll" style="margin-top:1rem;"></div>
-    <canvas id="soapChart" width="600" height="300" style="max-width:100%;"></canvas>
-  </div>
-
-    <!-- Sekcja importu zgonów z Eurostatu -->
-    <div class="section">
-        <h2>Import zgonów z Eurostatu</h2>
-        <button id="importDeathsBtn">Importuj z Eurostatu</button>
-        <div id="importDeathsResult"></div>
-    </div>
-
-    <div class="section">
-      <h2>Import danych bezrobocia</h2>
-      <form id="importFileForm" enctype="multipart/form-data">
-        <label for="importFormat">Format pliku:</label>
-        <select id="importFormat" name="format" required>
-          <option value="">— wybierz —</option>
-          <option value="xml">XML</option>
-          <option value="json">JSON</option>
-          <option value="yaml">YAML</option>
-        </select>
-        <label for="importFile">Wybierz plik:</label>
-        <input type="file" id="importFile" name="file" accept=".xml,.json,.yaml,.yml" required>
-        <button type="submit">Importuj</button>
+  <section id="authSection" class="flex justify-center items-center min-h-screen">
+    <div class="bg-white shadow-md rounded-lg p-8 w-full max-w-md">
+      <h2 class="text-2xl font-bold mb-4">Zaloguj się</h2>
+      <form id="loginForm" class="flex flex-col gap-4">
+        <div>
+          <label for="username" class="block font-medium">Nazwa użytkownika</label>
+          <input type="text" id="username" class="w-full border rounded px-3 py-2" required>
+        </div>
+        <div>
+          <label for="password" class="block font-medium">Hasło</label>
+          <input type="password" id="password" class="w-full border rounded px-3 py-2" required>
+        </div>
+        <button type="submit" class="bg-blue-600 text-white rounded py-2 hover:bg-blue-700">Zaloguj</button>
       </form>
-      <div id="importFileResult"></div>
+      <div id="loginResult" class="mt-4 text-sm"></div>
+      <p class="mt-4 text-sm">
+        Nie masz konta?
+        <a href="#" class="text-blue-600 hover:underline" id="showRegister">Zarejestruj się</a>
+      </p>
     </div>
+  </section>
+
+  <section id="registerSection" class="hidden p-6">
+    <div class="max-w-md mx-auto bg-white shadow-md rounded-lg p-6">
+      <h2 class="text-2xl font-semibold mb-4">Zarejestruj się</h2>
+      <form id="registerForm" class="space-y-4">
+        <div>
+          <label for="regUsername" class="block font-semibold">Nazwa użytkownika</label>
+          <input type="text" id="regUsername" required class="w-full border rounded px-3 py-2">
+        </div>
+        <div>
+          <label for="regPassword" class="block font-semibold">Hasło</label>
+          <input type="password" id="regPassword" required class="w-full border rounded px-3 py-2">
+        </div>
+        <button type="submit" class="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 w-full">Zarejestruj się</button>
+        <div id="registerResult" class="text-sm mt-2"></div>
+      </form>
+      <p class="mt-4 text-sm text-center">
+        Masz już konto?
+        <a href="#" class="text-blue-600 hover:underline" id="showLogin">Zaloguj się</a>
+      </p>
+    </div>
+  </section>
+
+  <section id="homeSection" class="hidden p-6 space-y-6">
+    <div class="bg-white shadow-md rounded-lg p-6">
+      <h2 class="text-xl font-semibold mb-4">📊 Wykres: Bezrobocie i Zgony w czasie</h2>
+      <canvas id="combinedChart" height="120"></canvas>
+    </div>
+    <div class="bg-white shadow-md rounded-lg p-6">
+      <h2 class="text-xl font-semibold mb-4">📍 Wykres: Bezrobocie wg regionu</h2>
+      <canvas id="barChart" height="100"></canvas>
+    </div>
+  </section>
+
+  <section id="soapSection" class="hidden p-6">
+    <div class="section">
+      <h2>SOAP: Stopa bezrobocia</h2>
+      <div style="display:flex; gap:1rem; flex-wrap:wrap; align-items:flex-end;">
+        <div>
+          <label for="soapYear">Rok:</label>
+          <select id="soapYear">
+            <option>2018</option><option>2019</option><option>2020</option>
+            <option>2021</option><option>2022</option>
+          </select>
+        </div>
+        <div>
+          <label for="soapMonth">Miesiąc:</label>
+          <select id="soapMonth">
+            <option value="1">Styczeń</option><option value="2">Luty</option>
+            <option value="3">Marzec</option><option value="4">Kwiecień</option>
+            <option value="5">Maj</option><option value="6">Czerwiec</option>
+            <option value="7">Lipiec</option><option value="8">Sierpień</option>
+            <option value="9">Wrzesień</option><option value="10">Październik</option>
+            <option value="11">Listopad</option><option value="12">Grudzień</option>
+          </select>
+        </div>
+        <div><button id="soapFetchBtn">Pojedyncza wartość</button></div>
+        <div><button id="soapFetchAllBtn">Cała seria (2018–2022)</button></div>
+      </div>
+      <div id="soapResultSingle" style="margin-top:1rem;"></div>
+      <div id="soapResultAll" style="margin-top:1rem;"></div>
+      <canvas id="soapChart" width="600" height="300" style="max-width:100%;"></canvas>
+    </div>
+  </section>
+
+  <section id="importExportSection" class="hidden p-6">
+    <div class="space-y-8">
+
+      <!-- Eksport danych -->
+      <div class="bg-white shadow-md rounded-lg p-6">
+        <h3 class="text-xl font-semibold mb-4">Eksport danych</h3>
+        <form id="exportForm" class="space-y-4">
+          <div>
+            <label for="type" class="block font-semibold">Typ danych:</label>
+            <select id="type" name="type" class="w-full border rounded px-3 py-2">
+              <option value="unemployment">Bezrobocie</option>
+              <option value="deaths">Zgony</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="dateSlider" class="block font-semibold">Zakres dat (od - do):</label>
+            <div id="dateSlider" class="my-4"></div>
+            <div class="slider-labels text-center text-sm text-gray-600">
+              <span id="rangeFrom">2018-01</span> — <span id="rangeTo">2022-12</span>
+            </div>
+            <input type="hidden" id="from" name="from" value="2018-01">
+            <input type="hidden" id="to" name="to" value="2022-12">
+          </div>
+
+          <div>
+            <label for="format" class="block font-semibold">Format:</label>
+            <select id="format" name="format" class="w-full border rounded px-3 py-2">
+              <option value="application/json">JSON</option>
+              <option value="application/x-yaml">YAML</option>
+              <option value="application/xml">XML</option>
+            </select>
+          </div>
+
+          <button type="submit" class="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 w-full">Eksportuj</button>
+          <div id="exportResult" class="text-sm mt-2"></div>
+        </form>
+      </div>
+
+      <!-- Import danych bezrobocia -->
+      <div class="bg-white shadow-md rounded-lg p-6">
+        <h3 class="text-xl font-semibold mb-4">Import danych bezrobocia</h3>
+        <form id="importFileForm" enctype="multipart/form-data" class="space-y-4">
+          <div>
+            <label for="importFormat" class="block font-semibold">Format pliku:</label>
+            <select id="importFormat" name="format" required class="w-full border rounded px-3 py-2">
+              <option value="">— wybierz —</option>
+              <option value="xml">XML</option>
+              <option value="json">JSON</option>
+              <option value="yaml">YAML</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="importFile" class="block font-semibold">Wybierz plik:</label>
+            <input type="file" id="importFile" name="file" accept=".xml,.json,.yaml,.yml" required class="w-full border rounded px-3 py-2">
+          </div>
+
+          <button type="submit" class="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 w-full">Importuj</button>
+          <div id="importFileResult" class="text-sm mt-2"></div>
+        </form>
+      </div>
+
+      <!-- Import danych z Eurostatu -->
+      <div class="bg-white shadow-md rounded-lg p-6">
+        <h3 class="text-xl font-semibold mb-4">Import danych śmiertelności z Eurostatu</h3>
+        <p class="text-sm text-gray-600 mb-2">Importuje dane o zgonach bezpośrednio z serwisu Eurostat.</p>
+        <button id="importDeathsBtn" class="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700">Importuj z Eurostatu</button>
+        <div id="importDeathsResult" class="text-sm mt-2"></div>
+      </div>
+
+    </div>
+  </section>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const nav = document.getElementById('mainNav');
+      const links = document.querySelectorAll('.nav-link');
+      const sections = {
+        auth: document.getElementById('authSection'),
+        home: document.getElementById('homeSection'),
+        soap: document.getElementById('soapSection'),
+        importExport: document.getElementById('importExportSection')
+      };
+
+      function showSection(name) {
+        Object.values(sections).forEach(sec => sec.classList.add('hidden'));
+        if (sections[name]) sections[name].classList.remove('hidden');
+      }
+
+      links.forEach(link => link.addEventListener('click', e => {
+        e.preventDefault();
+        const target = e.target.getAttribute('data-section');
+        showSection(target);
+      }));
+
+      document.getElementById('logoutBtn').addEventListener('click', e => {
+        e.preventDefault();
+        localStorage.removeItem('token');
+        showSection('auth');
+        nav.classList.add('hidden');
+      });
+
+      const token = localStorage.getItem('token');
+      if (token) {
+        nav.classList.remove('hidden');
+        showSection('home');
+      } else {
+        showSection('auth');
+      }
+      document.getElementById("showRegister")?.addEventListener("click", e => {
+        e.preventDefault();
+        document.getElementById("authSection").classList.add("hidden");
+        document.getElementById("registerSection").classList.remove("hidden");
+      });
+
+      document.getElementById("showLogin")?.addEventListener("click", e => {
+        e.preventDefault();
+        document.getElementById("registerSection").classList.add("hidden");
+        document.getElementById("authSection").classList.remove("hidden");
+      });
+      links.forEach(link => link.addEventListener('click', async e => {
+        e.preventDefault();
+        const target = e.target.getAttribute('data-section');
+        showSection(target);
+        if (target === 'home') {
+          await renderHomeCharts();
+          await renderBarChart();
+        }
+      }));
+    });
+  </script>
 </body>
 </html>

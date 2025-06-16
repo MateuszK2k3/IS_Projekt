@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let token = null;
     let soapChart = null;
 
-// helper: fetch z JWT
+    // helper: fetch z JWT
     async function fetchWithToken(url, opts = {}) {
         if (!token) {
             alert('Proszę się zalogować!');
@@ -15,7 +15,35 @@ document.addEventListener('DOMContentLoaded', () => {
         return fetch(url, opts);
     }
 
-// LOGOWANIE
+    // REJESTRACJA
+    document.getElementById("registerForm")?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const username = document.getElementById("regUsername").value;
+      const password = document.getElementById("regPassword").value;
+      const result = document.getElementById("registerResult");
+      result.textContent = "";
+
+      try {
+        const res = await fetch("/api/auth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          result.textContent = data.msg;
+          result.className = "text-green-600 mt-2";
+        } else {
+          result.textContent = data.msg || "Błąd rejestracji";
+          result.className = "text-red-600 mt-2";
+        }
+      } catch {
+        result.textContent = "Błąd połączenia z serwerem";
+        result.className = "text-red-600 mt-2";
+      }
+    });
+
+    // LOGOWANIE
     document.getElementById('loginForm').addEventListener('submit', async e => {
         e.preventDefault();
         const user = document.getElementById('username').value;
@@ -30,8 +58,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await resp.json();
             if (resp.ok) {
                 token = data.access_token;
+                localStorage.setItem('token', token);
+                document.getElementById('mainNav').classList.remove('hidden');
+                document.getElementById('authSection').classList.add('hidden');
+                document.getElementById('homeSection').classList.remove('hidden');
+
+                await renderHomeCharts();
+                await renderBarChart();
+
                 out.textContent = 'Zalogowano pomyślnie!';
-                out.className = 'success';
+                out.className = 'text-green-600 mt-2';
             } else {
                 out.textContent = data.msg || 'Błąd logowania';
                 out.className = 'error';
@@ -271,3 +307,137 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+const tokenFromStorage = localStorage.getItem('token');
+
+async function fetchData(url, key) {
+  const resp = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem('token')}`,
+      Accept: 'application/json'
+    }
+  });
+
+  if (!resp.ok) {
+    throw new Error(`Błąd API: ${resp.status}`);
+  }
+
+  const data = await resp.json();
+  return data.map(d => ({
+    date: d.date,
+    value: parseFloat(d[key])
+  }));
+}
+
+async function renderHomeCharts() {
+  const [unemployment, deathsRaw] = await Promise.all([
+    fetchData('/api/v1/unemployment/monthly-avg', 'rate'),
+    fetchData('/api/v1/export?type=deaths&from=2018-01&to=2022-12', 'count'),
+  ]);
+
+  const deaths = groupByMonth(deathsRaw);
+
+  const labels = deaths.map(d => d.date); // te same miesiące
+
+  const deathsData = deaths.map(d => d.value);
+  const unemploymentMap = new Map(unemployment.map(d => [d.date.slice(0, 7), d.value]));
+  const unemploymentData = labels.map(month => unemploymentMap.get(month) || null);
+
+  const ctx = document.getElementById('combinedChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Zgony (miesięcznie)',
+          data: deathsData,
+          backgroundColor: 'rgba(255, 99, 132, 0.3)',
+          yAxisID: 'yDeaths',
+        },
+        {
+          label: 'Stopa bezrobocia (%)',
+          data: unemploymentData,
+          type: 'line',
+          borderColor: 'rgba(54, 162, 235, 1)',
+          backgroundColor: 'rgba(54, 162, 235, 0.2)',
+          fill: false,
+          yAxisID: 'yUnemployment',
+          tension: 0.3,
+          pointRadius: 2,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      stacked: false,
+      scales: {
+        yDeaths: {
+          type: 'linear',
+          position: 'left',
+          title: { display: true, text: 'Zgony' },
+        },
+        yUnemployment: {
+          type: 'linear',
+          position: 'right',
+          title: { display: true, text: 'Bezrobocie (%)' },
+          grid: { drawOnChartArea: false },
+          min: 3,
+          max: 8
+        },
+      },
+    },
+  });
+}
+
+
+async function renderBarChart() {
+  const resp = await fetch('/api/v1/unemployment/region-latest', {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
+        Accept: 'application/json'
+      },
+    });
+  const data = await resp.json();
+  const ctx = document.getElementById('barChart').getContext('2d');
+
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: data.map(r => r.region),
+      datasets: [{
+        label: 'Stopa bezrobocia (%)',
+        data: data.map(r => r.rate),
+        backgroundColor: 'rgba(0, 123, 255, 0.6)',
+      }],
+    },
+    options: {
+      responsive: true,
+      indexAxis: 'y',
+      scales: {
+        x: {
+          beginAtZero: true,
+          title: { display: true, text: 'Bezrobocie (%)' },
+        },
+      },
+    },
+  });
+}
+
+function groupByMonth(data) {
+  const grouped = {};
+
+  for (const { date, value } of data) {
+    const month = date.slice(0, 7); // YYYY-MM
+    if (!grouped[month]) grouped[month] = 0;
+    grouped[month] += value;
+  }
+
+  return Object.entries(grouped).map(([month, total]) => ({
+    date: month,
+    value: total
+  }));
+}
+
+window.renderHomeCharts = renderHomeCharts;
+window.renderBarChart = renderBarChart;

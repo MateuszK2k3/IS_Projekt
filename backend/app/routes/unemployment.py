@@ -19,6 +19,34 @@ MONTHS = {
     "wrzesień": 9, "październik": 10, "listopad": 11, "grudzień": 12,
 }
 
+@unemployment_bp.route("/region-latest")
+@jwt_required()
+def unemployment_by_region():
+    from sqlalchemy import func
+    latest_date = db.session.query(func.max(Unemployment.date)).scalar()
+    rows = (
+        db.session.query(Region.name, Unemployment.rate)
+        .join(Unemployment)
+        .filter(Unemployment.date == latest_date)
+        .all()
+    )
+    return jsonify([{"region": r[0], "rate": r[1]} for r in rows])
+
+@unemployment_bp.route("/monthly-avg")
+@jwt_required()
+def unemployment_monthly_avg():
+    from sqlalchemy import func
+    results = (
+        db.session.query(
+            func.to_char(Unemployment.date, 'YYYY-MM').label('month'),
+            func.avg(Unemployment.rate).label('avg_rate')
+        )
+        .group_by('month')
+        .order_by('month')
+        .all()
+    )
+    return jsonify([{"date": r[0], "rate": round(r[1], 2)} for r in results])
+
 @unemployment_bp.route("/import/file", methods=["POST"])
 @jwt_required()
 def import_unemployment_file():
