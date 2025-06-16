@@ -25,24 +25,21 @@ DB_CONFIG = {
     "port": os.getenv("POSTGRES_PORT", "5432"),
 }
 
-def fetch_unemployment(year: int, month: int, region_id: int = 1) -> str:
+def fetch_unemployment_avg(year: int, month: int) -> str:
     """
-    Pobiera stopę bezrobocia dla danego roku/miesiąca i regionu.
+    Pobiera średnią stopę bezrobocia dla danego roku/miesiąca (wszystkie regiony).
     Zwraca '-1' jeśli brak danych.
     """
     conn = psycopg2.connect(**DB_CONFIG)
     try:
         cur = conn.cursor()
         cur.execute("""
-            SELECT rate
+            SELECT AVG(rate)
               FROM public.unemployment
              WHERE date = %s
-               AND region_id = %s
-             ORDER BY imported_at DESC
-             LIMIT 1
-        """, (date(year, month, 1), region_id))
+        """, (date(year, month, 1),))
         row = cur.fetchone()
-        return str(row[0]) if row else "-1"
+        return str(round(row[0], 2)) if row and row[0] is not None else "-1"
     finally:
         cur.close()
         conn.close()
@@ -55,7 +52,7 @@ async def soap_endpoint(request: Request):
     try:
         year = int(tree.xpath("//*[local-name()='year']/text()")[0])
         month = int(tree.xpath("//*[local-name()='month']/text()")[0])
-        rate = fetch_unemployment(year, month, region_id=1)
+        rate = fetch_unemployment_avg(year, month)
     except Exception:
         rate = "-1"
 
